@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Bot, User, FileText, Loader2, Lightbulb } from "lucide-react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Send, Bot, User, FileText, Loader2, Lightbulb, MessageSquare, Brain } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 
@@ -33,6 +34,7 @@ export function ChatInterface() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [documentStats, setDocumentStats] = useState({ documents: 0, pages: 0, chunks: 0 })
+  const [chatMode, setChatMode] = useState<"general" | "financial">("financial")
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -43,14 +45,24 @@ export function ChatInterface() {
     }
   }, [token])
 
-  const suggestedQuestions = [
-    "What is an emergency fund and how much should I save?",
-    "How does compound interest work in investments?",
-    "What are the different types of retirement accounts?",
-    "How can I improve my credit score?",
-    "What should I consider when choosing insurance coverage?",
-    "How do I create a monthly budget?",
-  ]
+  const suggestedQuestions = {
+    financial: [
+      "What is an emergency fund and how much should I save?",
+      "How does compound interest work in investments?",
+      "What are the different types of retirement accounts?",
+      "How can I improve my credit score?",
+      "What should I consider when choosing insurance coverage?",
+      "How do I create a monthly budget?",
+    ],
+    general: [
+      "Hello! How are you today?",
+      "Can you explain how photosynthesis works?",
+      "What's the difference between weather and climate?",
+      "Tell me about the history of space exploration",
+      "How do computers process information?",
+      "What are some tips for better time management?",
+    ]
+  }
 
   useEffect(() => {
     loadDocumentStats()
@@ -98,7 +110,27 @@ export function ChatInterface() {
     setIsLoading(true)
 
     try {
-      const response = await apiClient.sendChatMessage(question, [])
+      let response
+      if (chatMode === "general") {
+        // Call general chatbot API
+        const chatbotResponse = await fetch("/api/chatbot", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { authorization: `Bearer ${token}` })
+          },
+          body: JSON.stringify({ message: question })
+        })
+        const chatbotData = await chatbotResponse.json()
+        response = {
+          response: chatbotData.answer,
+          citations: [],
+          source: chatbotData.source || "general-chatbot"
+        }
+      } else {
+        // Call financial knowledge base API
+        response = await apiClient.sendChatMessage(question, [])
+      }
 
       const assistantMessage: Message = {
         id: loadingMessage.id,
@@ -137,10 +169,30 @@ export function ChatInterface() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-3">Financial Knowledge Base</h1>
-        <p className="text-lg text-muted-foreground">
-          Access comprehensive financial insights from external sources and industry documents with precise citations and real-time analysis.
+        <h1 className="text-4xl font-bold text-foreground mb-3">
+          {chatMode === "financial" ? "Financial Knowledge Base" : "General AI Assistant"}
+        </h1>
+        <p className="text-lg text-muted-foreground mb-6">
+          {chatMode === "financial" 
+            ? "Access comprehensive financial insights from external sources and industry documents with precise citations and real-time analysis."
+            : "Chat with our general AI assistant for help with various topics, explanations, and conversations."
+          }
         </p>
+        
+        {/* Mode Selector */}
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-foreground">Mode:</span>
+          <ToggleGroup type="single" value={chatMode} onValueChange={(value) => setChatMode(value as "general" | "financial")}>
+            <ToggleGroupItem value="financial" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Financial Knowledge
+            </ToggleGroupItem>
+            <ToggleGroupItem value="general" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              General Chat
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
@@ -150,9 +202,9 @@ export function ChatInterface() {
             <CardHeader className="pb-4 border-b border-border/50">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="p-2 rounded-lg bg-accent/10">
-                  <Bot className="h-6 w-6 text-accent" />
+                  {chatMode === "financial" ? <Brain className="h-6 w-6 text-accent" /> : <MessageSquare className="h-6 w-6 text-accent" />}
                 </div>
-                Financial Assistant
+                {chatMode === "financial" ? "Financial Assistant" : "General Assistant"}
                 <Badge variant="outline" className="ml-auto bg-green-50 text-green-700 border-green-200">
                   Active
                 </Badge>
@@ -164,17 +216,22 @@ export function ChatInterface() {
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center py-16 px-8">
                     <div className="mb-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 p-6">
-                      <Bot className="h-12 w-12 text-accent" />
+                      {chatMode === "financial" ? <Brain className="h-12 w-12 text-accent" /> : <MessageSquare className="h-12 w-12 text-accent" />}
                     </div>
                     <h3 className="text-2xl font-bold text-foreground mb-4">
-                      Ready to help with your financial questions
+                      {chatMode === "financial" 
+                        ? "Ready to help with your financial questions"
+                        : "Ready to chat and help with any questions"
+                      }
                     </h3>
                     <p className="text-muted-foreground mb-8 max-w-lg text-lg leading-relaxed">
-                      Ask me anything about financial topics. I'll provide detailed answers with
-                      precise citations from external sources and real-time analysis powered by Hugging Face models.
+                      {chatMode === "financial"
+                        ? "Ask me anything about financial topics. I'll provide detailed answers with precise citations from external sources and real-time analysis powered by Hugging Face models."
+                        : "I'm here to help with general questions, explanations, and conversations. Feel free to ask me anything!"
+                      }
                     </p>
                     <div className="grid grid-cols-1 gap-3 max-w-lg w-full">
-                      {suggestedQuestions.slice(0, 3).map((question, index) => (
+                      {suggestedQuestions[chatMode].slice(0, 3).map((question, index) => (
                         <Button
                           key={index}
                           variant="outline"
@@ -263,7 +320,7 @@ export function ChatInterface() {
                     ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask a question about financial topics..."
+                    placeholder={chatMode === "financial" ? "Ask a question about financial topics..." : "Ask me anything..."}
                     disabled={isLoading}
                     className="flex-1 h-12 text-base border-border/50 focus:border-accent/50 focus:ring-accent/20"
                   />
@@ -291,7 +348,7 @@ export function ChatInterface() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {suggestedQuestions.map((question, index) => (
+              {suggestedQuestions[chatMode].map((question, index) => (
                 <Button
                   key={index}
                   variant="ghost"
