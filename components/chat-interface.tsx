@@ -231,7 +231,7 @@ export function ChatInterface() {
                       }
                     </p>
                     <div className="grid grid-cols-1 gap-3 max-w-lg w-full">
-                      {suggestedQuestions[chatMode].slice(0, 3).map((question, index) => (
+                      {suggestedQuestions[chatMode]?.slice(0, 3).map((question, index) => (
                         <Button
                           key={index}
                           variant="outline"
@@ -348,7 +348,7 @@ export function ChatInterface() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {suggestedQuestions[chatMode].map((question, index) => (
+              {suggestedQuestions[chatMode]?.map((question, index) => (
                 <Button
                   key={index}
                   variant="ghost"
