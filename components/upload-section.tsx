@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
 import { SecurityNotice } from "@/components/security-notice"
+import Link from "next/link"
 
 interface UploadedFile {
   id: string
@@ -208,9 +209,11 @@ export function UploadSection() {
 
                 {files.some((f) => f.status === "completed") && (
                   <div className="mt-6 pt-6 border-t border-border">
-                    <Button className="w-full" size="lg">
-                      Start Asking Questions
-                    </Button>
+                    <Link href="/chat">
+                      <Button className="w-full" size="lg">
+                        Start Asking Questions
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </CardContent>
