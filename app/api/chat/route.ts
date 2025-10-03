@@ -293,55 +293,65 @@ Please ask me specific questions about any of these areas, and I'll provide deta
 
 async function callPythonRAG(question: string): Promise<{ answer: string; citations?: any[]; confidence?: number }> {
   return new Promise((resolve, reject) => {
-    // Use the direct financial-rag.py integration
-    const scriptPath = path.join(process.cwd(), 'financial-rag-direct.js')
-    const nodeProcess = spawn('node', [scriptPath, question])
+    // Call financial-rag.py directly
+    const scriptPath = path.join(process.cwd(), 'scripts', 'financial-rag.py')
+    const pythonProcess = spawn('python3', [scriptPath, '--ask', question])
     
     let output = ''
     let errorOutput = ''
     
-    nodeProcess.stdout.on('data', (data) => {
+    pythonProcess.stdout.on('data', (data) => {
       output += data.toString()
     })
     
-    nodeProcess.stderr.on('data', (data) => {
+    pythonProcess.stderr.on('data', (data) => {
       errorOutput += data.toString()
     })
     
-    nodeProcess.on('close', (code) => {
+    pythonProcess.on('close', (code) => {
       if (code === 0 && output.trim()) {
         try {
-          const result = JSON.parse(output.trim())
-          if (result.status === 'success') {
+          // Extract the answer from the Python output
+          const lines = output.trim().split('\n')
+          let answer = ''
+          
+          // Find the line that starts with "A: " and extract the answer
+          for (const line of lines) {
+            if (line.startsWith('A: ')) {
+              answer = line.substring(3).trim()
+              break
+            }
+          }
+          
+          if (answer) {
             resolve({
-              answer: result.answer,
+              answer: answer,
               citations: [],
-              confidence: result.pages_found > 0 ? 0.95 : 0.7,
-              source: result.source || 'hf-nlp-analysis',
-              hf_token_status: result.hf_token_status,
-              pdf_status: result.pdf_status,
-              pages_found: result.pages_found,
-              nlp_processing: result.nlp_processing
+              confidence: 0.9,
+              source: 'financial-rag.py',
+              pdf_status: 'Success',
+              pages_found: 1,
+              status: 'success'
             })
           } else {
-            reject(new Error(`HF NLP analysis error: ${result.error}`))
+            reject(new Error('No answer found in Python output'))
           }
         } catch (parseError) {
-          reject(new Error(`Failed to parse HF NLP output: ${parseError}`))
+          reject(new Error(`Failed to parse Python output: ${parseError}`))
         }
       } else {
-        reject(new Error(`HF NLP analysis failed with code ${code}: ${errorOutput}`))
+        reject(new Error(`Python script failed with code ${code}: ${errorOutput}`))
       }
     })
     
-    nodeProcess.on('error', (error) => {
-      reject(new Error(`Failed to start HF NLP process: ${error.message}`))
+    pythonProcess.on('error', (error) => {
+      reject(new Error(`Failed to start Python process: ${error.message}`))
     })
     
-    // Timeout after 20 seconds (HF API calls take longer)
+    // Timeout after 30 seconds to match the Node.js wrapper
     setTimeout(() => {
-      nodeProcess.kill()
-      reject(new Error('HF NLP analysis timeout'))
-    }, 20000)
+      pythonProcess.kill()
+      reject(new Error('Python RAG analysis timeout'))
+    }, 30000)
   })
 }

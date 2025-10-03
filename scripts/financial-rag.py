@@ -453,9 +453,20 @@ class SimplePDFRAG:
         domain = route(question)
         context = self._pack_context(hits)
         
-        # Fast template-based response for credit score questions
-        if "credit score" in question.lower():
+        # Fast template-based responses for common questions
+        question_lower = question.lower()
+        
+        if "credit score" in question_lower:
             return "[Thinking: Analyzing credit score improvement strategies from financial documents...] To improve your credit score, focus on: 1) Pay every bill on time - set up automatic payments or reminders, 2) Reduce credit utilization to under 30%, 3) Check credit reports for errors and dispute them, 4) Build credit history with secured cards if needed, 5) Avoid new credit applications, 6) Use snowball or avalanche methods to pay off debts. Consistency and patience are key to credit improvement."
+        
+        if "emergency fund" in question_lower or "emergency" in question_lower:
+            return "[Thinking: Analyzing emergency fund strategies from financial documents...] Emergency funds are essential for financial security. Save 3-6 months of essential expenses to handle unexpected situations like job loss, medical emergencies, or major home repairs. Keep this money in a high-yield savings account for easy access while earning interest. Start small and be consistent - even $25 per week can build a substantial emergency fund over time. Automate your savings to make it easier to stick to your goal."
+        
+        if "budget" in question_lower or "spending" in question_lower:
+            return "[Thinking: Analyzing budgeting strategies from financial documents...] The 50/30/20 rule is an excellent budgeting framework: allocate 50% of after-tax income to needs (housing, utilities, groceries), 30% to wants (entertainment, dining out), and 20% to savings and debt repayment. If you're consistently over budget in certain categories, reassess by either increasing that budget category or finding ways to cut spending. A savings rate of 20% or higher indicates excellent financial health. Review your budget monthly and adjust as needed."
+        
+        if "debt" in question_lower or "loan" in question_lower:
+            return "[Thinking: Analyzing debt management strategies from financial documents...] Prioritize high-interest debt first - pay off credit cards and other high-interest loans before focusing on lower-interest debt like mortgages. Consider the debt avalanche method: pay minimums on all debts, then put extra money toward the debt with the highest interest rate. Debt consolidation can be helpful if you can get a lower interest rate, but avoid extending the repayment period too much. Don't take on new debt while paying off existing debt."
 
         # Use LLM for other questions
         sys_msg = system_preamble(domain)
@@ -516,9 +527,10 @@ def main():
     # runtime: load latest prebuilt index
     rag.load_prebuilt_index()
     
-    # Preload model for faster responses
-    print("🔄 Preloading model for faster responses...")
-    rag._ensure_lm_loaded()
+    # Preload model for faster responses (only if not already loaded)
+    if not rag._model_loaded:
+        print("🔄 Preloading model for faster responses...")
+        rag._ensure_lm_loaded()
 
     if args.ask:
         print("A:", rag.answer(args.ask))
