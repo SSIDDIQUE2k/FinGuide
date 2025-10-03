@@ -283,28 +283,7 @@ export function ChatInterface() {
                                 {message.content}
                               </div>
 
-                              {message.citations && message.citations.length > 0 && (
-                                <div className="mt-6 space-y-3">
-                                  <h4 className="text-base font-semibold text-foreground flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-accent" />
-                                    Sources
-                                  </h4>
-                                  <div className="grid gap-3">
-                                    {message.citations.map((citation, index) => (
-                                      <div key={index} className="border border-border/50 rounded-lg p-4 bg-gradient-to-r from-muted/20 to-background hover:shadow-sm transition-shadow">
-                                        <div className="flex items-center gap-3 mb-3">
-                                          <FileText className="h-4 w-4 text-accent flex-shrink-0" />
-                                          <span className="font-semibold text-sm text-foreground">{citation.source}</span>
-                                          <Badge variant="outline" className="text-xs bg-accent/10 text-accent border-accent/30">
-                                            Page {citation.page}
-                                          </Badge>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground italic leading-relaxed">"{citation.excerpt}"</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                              {/* Sources section hidden per user request */}
                             </div>
                           )}
                         </div>
