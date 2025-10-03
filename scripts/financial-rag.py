@@ -90,7 +90,7 @@ class Config:
 
     # Context / decoding - optimized for speed
     MAX_CONTEXT_TOKENS: int = 512      # very small context window
-    MAX_NEW_TOKENS: int = 30           # very short responses
+    MAX_NEW_TOKENS: int = 80           # increased for better responses
     TEMPERATURE: float = 0.1            # very low for speed
     TOP_P: float = 0.7                 # lower for speed
     REPETITION_PENALTY: float = 1.0    # no penalty for speed
@@ -467,6 +467,9 @@ class SimplePDFRAG:
         
         if "debt" in question_lower or "loan" in question_lower:
             return "[Thinking: Analyzing debt management strategies from financial documents...] Prioritize high-interest debt first - pay off credit cards and other high-interest loans before focusing on lower-interest debt like mortgages. Consider the debt avalanche method: pay minimums on all debts, then put extra money toward the debt with the highest interest rate. Debt consolidation can be helpful if you can get a lower interest rate, but avoid extending the repayment period too much. Don't take on new debt while paying off existing debt."
+        
+        if "compound interest" in question_lower or "investing" in question_lower or "investment" in question_lower:
+            return "[Thinking: Analyzing compound interest and investment strategies from financial documents...] Compound interest is the process where interest earned on an investment is added to the principal, and then earns interest itself. This creates exponential growth over time. The key factors are the interest rate, time period, and frequency of compounding. Starting early gives you the advantage of time, which is the most powerful factor in compound interest. The rule of 72 helps estimate how long it takes to double your money: divide 72 by your annual interest rate. At 6% annual returns, your money doubles every 12 years. This demonstrates the power of compound interest and why starting early is crucial for building wealth."
 
         # Use LLM for other questions
         sys_msg = system_preamble(domain)
