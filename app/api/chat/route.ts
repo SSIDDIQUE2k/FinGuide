@@ -293,9 +293,10 @@ Please ask me specific questions about any of these areas, and I'll provide deta
 
 async function callPythonRAG(question: string): Promise<{ answer: string; citations?: any[]; confidence?: number }> {
   return new Promise((resolve, reject) => {
-    // Call financial-rag.py directly
+    // Call financial-rag.py using the virtual environment
     const scriptPath = path.join(process.cwd(), 'scripts', 'financial-rag.py')
-    const pythonProcess = spawn('python3', [scriptPath, '--ask', question])
+    const venvPython = path.join(process.cwd(), 'venv', 'bin', 'python')
+    const pythonProcess = spawn(venvPython, [scriptPath, '--ask', question])
     
     let output = ''
     let errorOutput = ''
