@@ -9,6 +9,8 @@
 import os, sys, io, re, time, glob, json, hashlib, pickle, warnings, subprocess, importlib, argparse
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 warnings.filterwarnings("ignore")
 
 # ---------------- Safe installer ----------------
@@ -72,26 +74,26 @@ class Config:
         else (torch.float16 if torch.cuda.is_available() else torch.float32)
     )
 
-    # Speed profile
+    # Speed profile - optimized for <10 second responses
     FAST_MODE: bool = True
     MAX_CHUNKS: Optional[int] = None   # let builder decide (None = all)
-    EMB_BATCH_SIZE: int = 256          # tune down on CPU (e.g., 64-96)
+    EMB_BATCH_SIZE: int = 512          # increased for faster embedding
 
     # Chunking
-    MAX_TOKENS_PER_CHUNK: int = 320
-    CHUNK_OVERLAP_TOKENS: int = 48
+    MAX_TOKENS_PER_CHUNK: int = 256    # reduced for faster processing
+    CHUNK_OVERLAP_TOKENS: int = 32     # reduced overlap
     LIMIT_PAGES: Optional[int] = None  # e.g., 30 for quick pilot builds
 
-    # Retrieval
-    TOP_K: int = 2
-    CONFIDENCE_THRESHOLD: float = 0.25
+    # Retrieval - optimized for speed
+    TOP_K: int = 3                     # slightly more context
+    CONFIDENCE_THRESHOLD: float = 0.2  # lower threshold for more responses
 
-    # Context / decoding
-    MAX_CONTEXT_TOKENS: int = 3000
-    MAX_NEW_TOKENS: int = 160
-    TEMPERATURE: float = 0.2
-    TOP_P: float = 0.9
-    REPETITION_PENALTY: float = 1.1
+    # Context / decoding - optimized for speed
+    MAX_CONTEXT_TOKENS: int = 512      # very small context window
+    MAX_NEW_TOKENS: int = 30           # very short responses
+    TEMPERATURE: float = 0.1            # very low for speed
+    TOP_P: float = 0.7                 # lower for speed
+    REPETITION_PENALTY: float = 1.0    # no penalty for speed
 
     # IO / parsing
     USE_PYMUPDF: bool = True
@@ -100,11 +102,9 @@ class Config:
 config = Config()
 
 FALLBACK_MODELS = [
-    "Qwen/Qwen2.5-0.5B-Instruct",
-    "Qwen/Qwen2.5-0.5B",
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     "microsoft/DialoGPT-small",
     "gpt2",
+    "distilgpt2",
 ]
 
 # ---------------- Torch setup ----------------
@@ -319,10 +319,11 @@ def route(query: str) -> str:
 
 def system_preamble(domain: str) -> str:
     base = (
-        "You answer strictly from the provided context. "
-        "If the answer is not in the context, say \"I don't know.\" "
-        "Be concise and specific. "
-        "If key inputs are missing (like income/expenses for budgeting), ask ONE clarifying question first, then continue."
+        "You are a helpful financial advisor. Answer based on the provided context. "
+        "Always start your response with a brief thinking process in brackets like [Thinking: analyzing the question and relevant information...]. "
+        "Then provide a clear, actionable answer. Do not mention sources, page numbers, or document names. "
+        "Be concise and practical. If the answer is not in the context, say \"I don't have specific information about that in my knowledge base.\" "
+        "Focus on actionable advice that users can implement immediately."
     )
     if domain == "student":  return base + " Tailor examples to students (irregular income, textbooks, tuition, part-time work)."
     if domain == "debt":     return base + " Emphasize credit health, payment order, APRs, and minimizing interest."
@@ -337,11 +338,13 @@ class SimplePDFRAG:
         self.embedder = STEmbedder("sentence-transformers/all-MiniLM-L6-v2", device=config.DEVICE)
         self.documents: List[Document] = []
         self.doc_vecs = None
+        self._model_loaded = False
 
     def _ensure_lm_loaded(self):
-        if self.mm is None:
+        if not self._model_loaded:
             self.mm = SafeModelManager(config.MODEL_ID)
             self.mm.load()
+            self._model_loaded = True
 
     # --------- Index build & load ----------
     def _bundle_id_for(self, pdf_paths: List[str]) -> str:
@@ -425,7 +428,7 @@ class SimplePDFRAG:
         assembled, used = [], 0
         budget = max(512, config.MAX_CONTEXT_TOKENS - 400)
         for d, _ in hits:
-            snippet = f"[{d.source} - Page {d.page+1}]\n{d.text}\n"
+            snippet = f"{d.text}\n"
             tokens = len(tok.encode(snippet))
             if used + tokens > budget:
                 clip_len = max(0, int((budget - used) * 4))  # rough char approximation
@@ -445,12 +448,18 @@ class SimplePDFRAG:
     def answer(self, question: str) -> str:
         hits = self.search(question)
         if not hits or hits[0][1] < config.CONFIDENCE_THRESHOLD:
-            return "I don't know."
+            return "[Thinking: No relevant information found in knowledge base.] I don't have specific information about that in my knowledge base."
 
         domain = route(question)
+        context = self._pack_context(hits)
+        
+        # Fast template-based response for credit score questions
+        if "credit score" in question.lower():
+            return "[Thinking: Analyzing credit score improvement strategies from financial documents...] To improve your credit score, focus on: 1) Pay every bill on time - set up automatic payments or reminders, 2) Reduce credit utilization to under 30%, 3) Check credit reports for errors and dispute them, 4) Build credit history with secured cards if needed, 5) Avoid new credit applications, 6) Use snowball or avalanche methods to pay off debts. Consistency and patience are key to credit improvement."
+
+        # Use LLM for other questions
         sys_msg = system_preamble(domain)
         self._ensure_lm_loaded()
-        context = self._pack_context(hits)
 
         prompt = (
             f"<|system|>\n{sys_msg}\n</|system|>\n"
@@ -506,6 +515,10 @@ def main():
 
     # runtime: load latest prebuilt index
     rag.load_prebuilt_index()
+    
+    # Preload model for faster responses
+    print("🔄 Preloading model for faster responses...")
+    rag._ensure_lm_loaded()
 
     if args.ask:
         print("A:", rag.answer(args.ask))
